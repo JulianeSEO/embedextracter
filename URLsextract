@@ -1,32 +1,6 @@
-from google.colab import files
-
-# Lade eine Datei hoch
-uploaded = files.upload()
-
-# Datei aus Uploads abrufen (es wird die erste Datei genommen)
-!pip install xlsxwriter
-file_name = list(uploaded.keys())[0]
-print(f"Hochgeladene Datei: {file_name}")
+import streamlit as st
 import pandas as pd
 import re
-from io import BytesIO
-
-# Lade die Datei als DataFrame
-df = pd.read_excel(file_name, engine='openpyxl')
-
-# Liste zum Speichern der extrahierten URLs
-embed_urls = []
-
-for column in df.columns:
-    if "Embed" in column:
-        for value in df[column].fillna("").values:
-            if isinstance(value, str):
-                if value.startswith("http") and "datawrapper" not in value:  # Hier wird auch in Spalten geprüft
-                    embed_urls.append(value)
-                elif "<iframe" in value:
-                    extracted_url = extract_iframe_url(value)
-                    if extracted_url:
-                        embed_urls.append(extracted_url)
 
 # Funktion zur Extraktion der URL aus einem iframe
 def extract_iframe_url(iframe_code):
@@ -37,26 +11,46 @@ def extract_iframe_url(iframe_code):
             return url
     return None
 
-# Gehe jede Spalte durch, die "Embed" enthält
-for column in df.columns:
-    if "Embed" in column:
-        for value in df[column].dropna():
-            if isinstance(value, str):  # Sicherstellen, dass es ein String ist
-                if value.startswith("http"):  # Falls die Embed-URL direkt ist
-                    embed_urls.append(value)
-                elif "<iframe" in value:  # Falls es ein iframe ist
-                    extracted_url = extract_iframe_url(value)
-                    if extracted_url:
-                        embed_urls.append(extracted_url)
+# Streamlit App
+st.title("Embed URL Extraktion")
 
-# Erstelle ein DataFrame mit den extrahierten URLs
-output_df = pd.DataFrame(embed_urls, columns=["Embed URL"])
+# Datei-Upload
+uploaded_file = st.file_uploader("Lade eine Excel-Datei hoch", type=["xlsx"])
 
-# Speichere das Ergebnis in eine neue Excel-Datei
-output_file = "extrahierte_embeds.xlsx"
-output_df.to_excel(output_file, index=False, engine='xlsxwriter')
+if uploaded_file is not None:
+    # Lade die Datei als DataFrame
+    df = pd.read_excel(uploaded_file, engine='openpyxl')
 
-# Datei für den Download bereitstellen
-files.download(output_file)
+    # Liste zum Speichern der extrahierten URLs
+    embed_urls = []
 
-print(f"Extrahierte Embed-URLs gespeichert als '{output_file}' und stehen zum Download bereit.")
+    # Gehe jede Spalte durch, die "Embed" enthält
+    for column in df.columns:
+        if "Embed" in column:
+            for value in df[column].fillna("").values:
+                if isinstance(value, str):
+                    if value.startswith("http") and "datawrapper" not in value:
+                        embed_urls.append(value)
+                    elif "<iframe" in value:
+                        extracted_url = extract_iframe_url(value)
+                        if extracted_url:
+                            embed_urls.append(extracted_url)
+
+    # Erstelle ein DataFrame mit den extrahierten URLs
+    output_df = pd.DataFrame(embed_urls, columns=["Embed URL"])
+
+    # Zeige die extrahierten URLs in der App
+    st.write("Extrahierte URLs:")
+    st.dataframe(output_df)
+
+    # Datei-Download-Button
+    output_file = "extrahierte_embeds.xlsx"
+    output_df.to_excel(output_file, index=False, engine='xlsxwriter')
+
+    with open(output_file, "rb") as file:
+        st.download_button(
+            label="Extrahierte URLs herunterladen",
+            data=file,
+            file_name=output_file,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
