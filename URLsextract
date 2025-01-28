@@ -1,3 +1,12 @@
+from google.colab import files
+
+# Lade eine Datei hoch
+uploaded = files.upload()
+
+# Datei aus Uploads abrufen (es wird die erste Datei genommen)
+!pip install xlsxwriter
+file_name = list(uploaded.keys())[0]
+print(f"Hochgeladene Datei: {file_name}")
 import pandas as pd
 import re
 from io import BytesIO
@@ -8,12 +17,23 @@ df = pd.read_excel(file_name, engine='openpyxl')
 # Liste zum Speichern der extrahierten URLs
 embed_urls = []
 
+for column in df.columns:
+    if "Embed" in column:
+        for value in df[column].fillna("").values:
+            if isinstance(value, str):
+                if value.startswith("http") and "datawrapper" not in value:  # Hier wird auch in Spalten geprüft
+                    embed_urls.append(value)
+                elif "<iframe" in value:
+                    extracted_url = extract_iframe_url(value)
+                    if extracted_url:
+                        embed_urls.append(extracted_url)
+
 # Funktion zur Extraktion der URL aus einem iframe
 def extract_iframe_url(iframe_code):
     match = re.search(r'src="([^"]+)"', iframe_code)
     if match:
         url = match.group(1)
-        if not url.startswith("https://datawrapper"):
+        if "datawrapper" not in url:  # Striktere Überprüfung
             return url
     return None
 
