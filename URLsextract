@@ -1,0 +1,42 @@
+import pandas as pd
+import re
+from io import BytesIO
+
+# Lade die Datei als DataFrame
+df = pd.read_excel(file_name, engine='openpyxl')
+
+# Liste zum Speichern der extrahierten URLs
+embed_urls = []
+
+# Funktion zur Extraktion der URL aus einem iframe
+def extract_iframe_url(iframe_code):
+    match = re.search(r'src="([^"]+)"', iframe_code)
+    if match:
+        url = match.group(1)
+        if not url.startswith("https://datawrapper"):
+            return url
+    return None
+
+# Gehe jede Spalte durch, die "Embed" enthält
+for column in df.columns:
+    if "Embed" in column:
+        for value in df[column].dropna():
+            if isinstance(value, str):  # Sicherstellen, dass es ein String ist
+                if value.startswith("http"):  # Falls die Embed-URL direkt ist
+                    embed_urls.append(value)
+                elif "<iframe" in value:  # Falls es ein iframe ist
+                    extracted_url = extract_iframe_url(value)
+                    if extracted_url:
+                        embed_urls.append(extracted_url)
+
+# Erstelle ein DataFrame mit den extrahierten URLs
+output_df = pd.DataFrame(embed_urls, columns=["Embed URL"])
+
+# Speichere das Ergebnis in eine neue Excel-Datei
+output_file = "extrahierte_embeds.xlsx"
+output_df.to_excel(output_file, index=False, engine='xlsxwriter')
+
+# Datei für den Download bereitstellen
+files.download(output_file)
+
+print(f"Extrahierte Embed-URLs gespeichert als '{output_file}' und stehen zum Download bereit.")
