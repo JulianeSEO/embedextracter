@@ -1,0 +1,8 @@
+from google.colab import files
+
+# Lade eine Datei hoch
+uploaded = files.upload()
+
+# Datei aus Uploads abrufen (es wird die erste Datei genommen)
+file_name = list(uploaded.keys())[0]
+print(f"Hochgeladene Datei: {file_name}")
